@@ -117,19 +117,21 @@ class FirebaseManager():
 			"refill": result
 		}	
 
-	def is_already_notified(self, id_token, refill_id=""):
-		refills = FirebaseManager.firebase.database().child("refills").get(id_token).val()
+	def get_latest_refill(self, id_token, refill_id=""):
+		refills = FirebaseManager.firebase.database().child("refills").order_by_key().get(id_token).val()
 		
 		if refills == None:
-			return False
+			return None
 
 		if refill_id == "":
-			refill_id = refills[refills.keys()[0]]
-		refill = refills[refill_id]
+			refill_id = refills.keys()[0]
 
-		if refill['status'] == 'filled':
-			return False
+		return {
+			"refill_id": refill_id,
+			"refill": refills[refill_id]
+		}
 
+	def is_already_notified(self, refill):
 		if refill['status'] == 'requested':
 			return True
 
@@ -150,13 +152,19 @@ class FirebaseManager():
 			data_message=data_message
 		)
 
-	def notify_to_refill(self, id_token, status, updated_at = 0):
+	def notify_to_refill(self, id_token, refill_map, updated_at = 0):
 		refill_notification = {
-			"status":status,
+			"status":"notified",
 			"updated_at":updated_at
 		}
 		
-		refill_id = str(uuid.uuid4())
+		if refill_map == None:
+			refill_id = str(int(round(time.time() * 1000)))
+		elif refill_map['refill']['status'] == 'notified':
+			refill_id = refill_map['refill_id']
+		else:
+			refill_id = str(int(round(time.time() * 1000)))
+
 		refill_ref = FirebaseManager.firebase.database().child("refills").child(refill_id)
 		result = refill_ref.set(refill_notification, id_token)
 		return {
@@ -178,11 +186,15 @@ try:
 		distance = distanceManager.read_distance()
 		firebaseManager.update_tank_current_height(user['idToken'], distance)
 
-		notified = firebaseManager.is_already_notified(user['idToken'], refill_id)
-		print "Notified: ", notified
+		refill_map = firebaseManager.get_latest_refill(user['idToken'], refill_id)
+		if refill_map == None:
+			notified = False
+		else:
+			notified = firebaseManager.is_already_notified(refill_map['refill'])
+		print "Notified: ",notified
 		
 		if distance <= 3 and not notified:
-			result = firebaseManager.notify_to_refill(id_token=user['idToken'], status="notified", updated_at=current_millis_time())
+			result = firebaseManager.notify_to_refill(id_token=user['idToken'], refill_map=refill_map, updated_at=current_millis_time())
 			refill_id = result['refill_id']
 			print result
 
