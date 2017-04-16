@@ -1,5 +1,6 @@
 from gpiozero import DistanceSensor
 from pyfcm import FCMNotification
+from math import pi
 import os
 import glob
 import time
@@ -47,9 +48,9 @@ class DistanceManager():
 		pulse_duration = pulse_end - pulse_start
 
 		#Multiply pulse duration by 17150 to get distance
-		distance = pulse_duration * 17150        
+		distance = pulse_duration * 17150
 		#Round to two decimal points
-		distance = round(distance, 2)            
+		distance = round(distance, 1)            
 
 		#Check whether the distance is within range
 		if distance > 2 and distance < 400:      
@@ -68,13 +69,13 @@ class TemperatureManager():
 	device_file = device_folder + '/w1_slave'
  
 	def read_temp_raw(self):
-	    f = open(device_file, 'r')
+	    f = open(TemperatureManager.device_file, 'r')
 	    lines = f.readlines()
 	    f.close()
 	    return lines
 	 
 	def read_temp(self):
-	    lines = read_temp_raw()
+	    lines = self.read_temp_raw()
 	    while lines[0].strip()[-3:] != 'YES':
 	        time.sleep(0.2)
 	        lines = read_temp_raw()
@@ -82,8 +83,17 @@ class TemperatureManager():
 	    if equals_pos != -1:
 	        temp_string = lines[1][equals_pos+2:]
 	        temp_c = float(temp_string) / 1000.0
-	        temp_f = temp_c * 9.0 / 5.0 + 32.0
-	        return str(temp_c)+'C', str(temp_f)+'F'
+	        # temp_f = temp_c * 9.0 / 5.0 + 32.0
+	        return temp_c
+
+class VolumeManager():
+
+	average_base_area = 8.14057038673254
+
+	def read_volume(self, current_height, current_temp):
+		raw_volume = pi * (VolumeManager.average_base_area * VolumeManager.average_base_area) * current_height
+		volume = raw_volume * (1 + (0.00045 * (current_temp - 27)))
+		return round(volume, 1)
 
 class FirebaseManager():
 	config = {
@@ -104,9 +114,10 @@ class FirebaseManager():
 		user_registration_id_obj = FirebaseManager.firebase.database().child("registration_ids").child(local_id).get(id_token)
 		return user_registration_id_obj.val()['registration_id']
 
-	def update_tank_current_height(self, id_token, current_height):
+	def update_tank_current_height_and_volume(self, id_token, current_height, current_volume):
 		tank = {
 			"current_height":current_height,
+			"current_volume":current_volume,
 			"updated_at":int(round(time.time() * 1000))
 		}
 		
@@ -115,7 +126,7 @@ class FirebaseManager():
 		return {
 			"refill_id":refill_id,
 			"refill": result
-		}	
+		}
 
 	def get_latest_refill(self, id_token, refill_id=""):
 		refills = FirebaseManager.firebase.database().child("refills").order_by_key().get(id_token).val()
@@ -173,6 +184,8 @@ class FirebaseManager():
 		}
 
 try:
+	TANK_HEIGHT = 30.5 # in CM
+	MINIMUM_HEIGHT = 7.7 # in CM
 	current_millis_time = lambda: int(round(time.time() * 1000))
 
 	firebaseManager = FirebaseManager()
@@ -182,9 +195,15 @@ try:
 	distanceManager = DistanceManager()
 	refill_id = ""
 
+	temperatureManager = TemperatureManager()
+	volumeManager = VolumeManager()
+
 	while True:
-		distance = distanceManager.read_distance()
-		firebaseManager.update_tank_current_height(user['idToken'], distance)
+		raw_distance = distanceManager.read_distance()
+		fuel_height = TANK_HEIGHT - raw_distance
+		temperature = temperatureManager.read_temp()
+		volume = volumeManager.read_volume(current_height = fuel_height, current_temp = temperature)
+		firebaseManager.update_tank_current_height_and_volume(user['idToken'], fuel_height, volume)
 
 		refill_map = firebaseManager.get_latest_refill(user['idToken'], refill_id)
 		if refill_map == None:
@@ -193,7 +212,7 @@ try:
 			notified = firebaseManager.is_already_notified(refill_map['refill'])
 		print "Notified: ",notified
 		
-		if distance <= 3 and not notified:
+		if fuel_height <= MINIMUM_HEIGHT and not notified:
 			result = firebaseManager.notify_to_refill(id_token=user['idToken'], refill_map=refill_map, updated_at=current_millis_time())
 			refill_id = result['refill_id']
 			print result
@@ -209,7 +228,7 @@ try:
 			
 			print "Low fuel!"
 		else:
-			print "Distance", distance, "cm"
+			print "Fuel Height", fuel_height, "cm"
 
 		time.sleep(1)
 
