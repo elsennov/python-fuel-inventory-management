@@ -1,7 +1,7 @@
 from gpiozero import DistanceSensor
 from pyfcm import FCMNotification
 from math import pi
-from time import gmtime, strftime
+from datetime import datetime
 import os
 import glob
 import time
@@ -21,7 +21,7 @@ class TwitterManager():
 	previous_tweet = ""
 
 	def postToTwitter(self, tweet):
-		now = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+		now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		new_tweet = tweet + " (" + now + ")"
 
 		if TwitterManager.previous_tweet != new_tweet:
