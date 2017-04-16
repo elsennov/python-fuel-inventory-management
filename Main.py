@@ -1,6 +1,7 @@
 from gpiozero import DistanceSensor
 from pyfcm import FCMNotification
 from math import pi
+from time import gmtime, strftime
 import os
 import glob
 import time
@@ -9,6 +10,25 @@ import RPi.GPIO as GPIO
 import time
 import json
 import uuid
+import twitter
+
+class TwitterManager():
+	api = twitter.Api(consumer_key='TVy7LrO06dsl7s7LgrtCohBWi',
+                      consumer_secret='N5Qc8ULhEb6zmC7MZxzAKPduAsEh9Y65vxRX5Sy9nQfshKyHDL',
+                      access_token_key='853745008972677121-q3B481Ypwz1SswFPSn5OQlHZgYRMadW',
+                      access_token_secret='JCcPEJ1VReuh63svwhiiGtx4CfuDdTQbc3pxJuEYDF5ue')
+
+	previous_tweet = ""
+
+	def postToTwitter(self, tweet):
+		now = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+		new_tweet = tweet + " (" + now + ")"
+
+		if TwitterManager.previous_tweet != new_tweet:
+			status = TwitterManager.api.PostUpdate(new_tweet)
+			return status.text
+		else:
+			return tweet
 
 class DistanceManager():	
 	#Set GPIO pin numbering                          
@@ -90,6 +110,8 @@ class VolumeManager():
 
 	average_base_area = 8.14057038673254
 
+	# current_height in cm
+	# current_temp in C
 	def read_volume(self, current_height, current_temp):
 		raw_volume = pi * (VolumeManager.average_base_area * VolumeManager.average_base_area) * current_height
 		volume = raw_volume * (1 + (0.00045 * (current_temp - 27)))
@@ -197,6 +219,7 @@ try:
 
 	temperatureManager = TemperatureManager()
 	volumeManager = VolumeManager()
+	twitterManager = TwitterManager()
 
 	while True:
 		raw_distance = distanceManager.read_distance()
@@ -213,6 +236,7 @@ try:
 		print "Notified: ",notified
 		
 		if fuel_height <= MINIMUM_HEIGHT and not notified:
+			# Update database
 			result = firebaseManager.notify_to_refill(id_token=user['idToken'], refill_map=refill_map, updated_at=current_millis_time())
 			refill_id = result['refill_id']
 			print result
@@ -225,7 +249,10 @@ try:
 				registration_id = user_registration_id,
 				data_message = data_message
 			)
-			
+
+			# Post to twitter
+			twitterManager.postToTwitter("SPBU MariniAna is currently low of fuel.")
+
 			print "Low fuel!"
 		else:
 			print "Fuel Height", fuel_height, "cm"
