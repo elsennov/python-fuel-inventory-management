@@ -214,9 +214,10 @@ try:
 	user = firebaseManager.sign_in_with_email_and_password("novraditya@gmail.com", "password")
 	user_registration_id = firebaseManager.get_user_registration_id(user['idToken'], user['localId'])
 
-	distanceManager = DistanceManager()
 	refill_id = ""
+	current_status = "low"
 
+	distanceManager = DistanceManager()
 	temperatureManager = TemperatureManager()
 	volumeManager = VolumeManager()
 	twitterManager = TwitterManager()
@@ -251,10 +252,14 @@ try:
 			)
 
 			# Post to twitter
+			current_status = "low"
 			twitterManager.postToTwitter("SPBU MariniAna is currently low of fuel.")
 
 			print "Low fuel!"
 		else:
+			if current_status == "low" and fuel_height > MINIMUM_HEIGHT:
+				current_status = "normal"
+				twitterManager.postToTwitter("SPBU MariniAna is currently normal.")
 			print "Fuel Height", fuel_height, "cm"
 
 		time.sleep(1)
