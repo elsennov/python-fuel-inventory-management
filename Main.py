@@ -259,7 +259,7 @@ try:
 		else:
 			if current_status == "low" and fuel_height > MINIMUM_HEIGHT:
 				current_status = "normal"
-				twitterManager.postToTwitter("SPBU MariniAna is currently normal.")
+				twitterManager.postToTwitter("SPBU MariniAna is now normal.")
 			print "Fuel Height", fuel_height, "cm"
 
 		time.sleep(1)
