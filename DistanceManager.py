@@ -46,7 +46,7 @@ class DistanceManager():
 		#Multiply pulse duration by 17150 to get distance
 		distance = pulse_duration * 17150
 		#Round to two decimal points
-		distance = round(distance, 1)            
+		distance = round(distance, 1)
 
 		#Check whether the distance is within range
 		if distance > 2 and distance < 400:      

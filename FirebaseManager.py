@@ -68,7 +68,7 @@ class FirebaseManager():
 	def is_notification_expired(self, last_update_time):
 		current_millis_time = int(round(time.time() * 1000))
 		elapsed_time = current_millis_time - last_update_time
-		return elapsed_time > 10000
+		return elapsed_time > (5 * 60 * 60 * 1000)
 
 	def send_notification(self, registration_id, data_message):
 		return FirebaseManager.push_service.notify_single_device(

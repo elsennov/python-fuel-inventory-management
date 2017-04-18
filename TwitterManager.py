@@ -5,6 +5,7 @@ import time
 import json
 import uuid
 import twitter
+import pytz
 
 class TwitterManager():
 	api = twitter.Api(consumer_key='TVy7LrO06dsl7s7LgrtCohBWi',
@@ -15,7 +16,8 @@ class TwitterManager():
 	previous_tweet = ""
 
 	def postToTwitter(self, tweet):
-		now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+		tz = pytz.timezone('Asia/Jakarta')
+		now = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
 		new_tweet = tweet + " (" + now + ")"
 
 		if TwitterManager.previous_tweet != new_tweet:

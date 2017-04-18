@@ -42,7 +42,7 @@ try:
 			notified = False
 		else:
 			notified = firebaseManager.is_already_notified(refill_map['refill'])
-		print "Notified: ",notified
+		print "Notified:", notified
 		
 		if fuel_height <= MINIMUM_HEIGHT and not notified:
 			# Update database
@@ -63,7 +63,7 @@ try:
 			current_status = "low"
 			twitterManager.postToTwitter("SPBU MariniAna is currently low of fuel.")
 
-			print "Low fuel!"
+			print "Low fuel! Fuel Height", fuel_height, "mm"
 		else:
 			if current_status == "low" and fuel_height > MINIMUM_HEIGHT:
 				current_status = "normal"
